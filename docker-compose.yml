@@ -1,0 +1,107 @@
+version: "3.6"
+
+services:
+  gateway-service:
+    build:
+      context: ./api-guardian-gateway
+      dockerfile: ./Dockerfile
+    ports:
+      - 8080:8080
+    networks:
+      - sugaya-dojo-network
+    depends_on:
+      - security-service
+
+  security-service:
+    build:
+      context: ./api-security
+      dockerfile: ./Dockerfile
+    ports:
+      - 8081:8081
+    networks:
+      - sugaya-dojo-network
+    depends_on:
+      - mysqldb
+    environment:
+      - DATABASE_HOST=mysqldb
+      - DATABASE_USER=root
+      - DATABASE_PASSWORD=root
+      - DATABASE_NAME=userdb
+      - DATABASE_PORT=3306
+
+  log-service:
+    build:
+      context: ./api-log
+      dockerfile: Dockerfile
+    ports:
+      - 8082:8082
+    networks:
+      - sugaya-dojo-network
+    depends_on:
+      - mongodb
+
+  kafka-message-service:
+    build:
+      context: ./kafka-message-service
+      dockerfile: Dockerfile
+    ports:
+      - 8085:8085
+    depends_on:
+      - kafka
+      - mongodb
+    networks:
+      - sugaya-dojo-network
+
+  mongodb:
+    image: mongo
+#    environment:
+#      MONGO_INITDB_ROOT_USERNAME: root
+#      MONGO_INITDB_ROOT_PASSWORD: MongoDB2019!
+    ports:
+      - 27017:27017
+    volumes:
+      - /home/sugaya/Projects/MongoDB:/data/db
+    networks:
+      - sugaya-dojo-network
+
+  mysqldb:
+    image: mysql:5.7
+    networks:
+      - sugaya-dojo-network
+    restart: always
+    ports:
+      - 3306:3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=userdb
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.2.1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    networks:
+      - sugaya-dojo-network
+
+  kafka:
+    image: confluentinc/cp-kafka:5.2.1
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - sugaya-dojo-network
+
+networks:
+  sugaya-dojo-network:
+    driver: bridge

@@ -1,0 +1,53 @@
+server:
+  port: 8080
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.springframework.web.HttpLogging: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+
+spring:
+#  application:
+#    name: api-guardian-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: security
+          uri: http://security-service:8081
+          predicates:
+            - Path=/user/**
+          filters:
+            - StripPrefix=1
+            - RemoveRequestHeader=Cookie
+        - id: service
+          uri: https://httpbin.org
+          predicates:
+#            - Method=GET
+            - Path=/my-ip/**
+          filters:
+            - StripPrefix=1
+            - AuthFilter=
+            - RemoveRequestHeader=Cookie
+
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: "*"
+
+#  security:
+#    oauth2:
+#      client:
+#        registration:
+#          uaa:
+#            client-id: gateway
+#            client-secret: sugaya
+#            authorization-grant-type: client_credentials
+#        provider:
+#          uaa:
+#            authorization-uri: http://localhost:8081/authenticate
+#            token-uri: http://localhost:8081/authenticate
